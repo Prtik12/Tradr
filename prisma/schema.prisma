@@ -1,0 +1,111 @@
+// Prisma schema for Tradr DeFi Platform
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Token {
+  id           String   @id @default(cuid())
+  mintAddress  String   @unique
+  name         String
+  symbol       String
+  decimals     Int
+  supply       String?  // BigInt as string to handle large numbers
+  imageUrl     String?
+  creator      String   // Public key
+  signature    String   // Creation transaction signature
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  poolsAsTokenX Pool[]  @relation("PoolTokenX")
+  poolsAsTokenY Pool[]  @relation("PoolTokenY")
+
+  @@map("tokens")
+}
+
+model Pool {
+  id                   String   @id @default(cuid())
+  configAddress        String   @unique // PDA address of the pool config
+  tokenXMint           String
+  tokenYMint           String
+  lpMintAddress        String   @unique
+  fee                  Int      // Basis points (e.g., 300 = 3%)
+  authority            String   // Public key of pool authority
+  locked               Boolean  @default(true)
+  creator              String   // Public key of creator
+  creationSignature    String   // Pool creation transaction
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  tokenX Token @relation("PoolTokenX", fields: [tokenXMint], references: [mintAddress])
+  tokenY Token @relation("PoolTokenY", fields: [tokenYMint], references: [mintAddress])
+
+  @@map("pools")
+}
+
+model Price {
+  id        String   @id @default(cuid())
+  feedId    String   // Pyth feed ID
+  price     Float
+  expo      Int      // Price exponent
+  timestamp DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([feedId, timestamp])
+  @@map("prices")
+}
+
+model Oracle {
+  id          String @id @default(cuid())
+  name        String @unique // e.g., "SOL/USD", "BTC/USD"
+  feedId      String @unique // Pyth feed ID
+  symbol      String
+  baseSymbol  String
+  quoteSymbol String
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("oracles")
+}
+
+// For order book (CLOB) functionality
+model Order {
+  id            String   @id @default(cuid())
+  orderId       String   @unique // OpenBook order ID
+  userAddress   String
+  marketAddress String   // OpenBook market address
+  poolAddress   String   // Associated AMM pool
+  side          String   // "buy" or "sell"
+  orderType     String   // "limit", "market", etc.
+  price         Float
+  quantity      Float
+  filledQty     Float    @default(0)
+  status        String   // "open", "filled", "cancelled"
+  signature     String   // Transaction signature
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("orders")
+}
+
+// For maker bot functionality
+model MakerBot {
+  id         String   @id @default(cuid())
+  poolId     String
+  enabled    Boolean  @default(false)
+  spread     Float    @default(0.001) // 0.1% spread
+  size       Float    @default(10)    // SOL equivalent
+  lastUpdate DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([poolId])
+  @@map("maker_bots")
+}
