@@ -22,6 +22,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Ensure SOL token exists (should be seeded, but double-check)
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
+    await prisma.token.upsert({
+      where: { mintAddress: SOL_MINT },
+      update: {},
+      create: {
+        mintAddress: SOL_MINT,
+        name: 'Solana',
+        symbol: 'SOL',
+        decimals: 9,
+        supply: '0',
+        imageUrl: null,
+        creator: 'SYSTEM',
+        signature: 'NATIVE_TOKEN',
+        whitelisted: true,
+      },
+    });
+
     // Check if token exists
     const token = await prisma.token.findUnique({
       where: { mintAddress: tokenMint },
@@ -29,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { error: 'Token not found in registry' },
+        { error: 'Token not found in registry. Please create your token first.' },
         { status: 400 }
       );
     }

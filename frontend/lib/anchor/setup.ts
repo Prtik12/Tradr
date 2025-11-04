@@ -83,8 +83,7 @@ export function getLpMintPDA(config: PublicKey): [PublicKey, number] {
 
 /**
  * Find pool config for a given token pair
- * Note: This requires iterating through seeds or maintaining a registry
- * For now, we'll use a deterministic seed based on token mint addresses
+ * Uses SHA256 hash to ensure each unique token pair gets a unique seed
  */
 export function derivePoolSeed(mintX: PublicKey, mintY: PublicKey): bigint {
   // Ensure consistent ordering (smaller pubkey first)
@@ -92,10 +91,14 @@ export function derivePoolSeed(mintX: PublicKey, mintY: PublicKey): bigint {
     ? [mintX, mintY]
     : [mintY, mintX];
 
-  // Create a simple hash from the two mint addresses
-  // In production, you might want to use a more sophisticated approach
+  // Use SHA256 to properly mix both mint addresses
+  // This ensures each unique token pair gets a unique seed
   const combined = Buffer.concat([mint1.toBuffer(), mint2.toBuffer()]);
-  const hashBytes = combined.slice(0, 8);
+
+  // Browser-compatible SHA256 hash
+  const crypto = require('crypto');
+  const hash = crypto.createHash('sha256').update(combined).digest();
+  const hashBytes = hash.slice(0, 8);
 
   // Convert 8 bytes to BigInt (little-endian)
   let value = 0n;

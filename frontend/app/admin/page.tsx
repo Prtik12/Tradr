@@ -28,16 +28,43 @@ interface Pool {
   };
 }
 
+interface PoolRequest {
+  id: string;
+  configAddress: string;
+  tokenXMint: string;
+  tokenYMint: string;
+  lpMintAddress: string;
+  escrowXAddress: string;
+  escrowYAddress: string;
+  fee: number;
+  authority: string;
+  status: string;
+  creator: string;
+  creationSignature: string;
+  createdAt: string;
+  tokenX: {
+    symbol: string;
+    name: string;
+  };
+  tokenY: {
+    symbol: string;
+    name: string;
+  };
+}
+
 export default function AdminPage() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const [pools, setPools] = useState<Pool[]>([]);
+  const [poolRequests, setPoolRequests] = useState<PoolRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [unlockingPool, setUnlockingPool] = useState<string | null>(null);
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
 
-  // Fetch pending pools
+  // Fetch pools and requests
   useEffect(() => {
     fetchPools();
+    fetchPoolRequests();
   }, []);
 
   const fetchPools = async () => {
@@ -52,6 +79,18 @@ export default function AdminPage() {
       toast.error('Failed to load pools');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPoolRequests = async () => {
+    try {
+      const response = await fetch('/api/admin/pool-requests?status=pending');
+      if (response.ok) {
+        const data = await response.json();
+        setPoolRequests(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching pool requests:', error);
     }
   };
 
@@ -96,6 +135,77 @@ export default function AdminPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to unlock pool');
     } finally {
       setUnlockingPool(null);
+    }
+  };
+
+  const handleApproveRequest = async (request: PoolRequest) => {
+    if (!publicKey) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    setProcessingRequest(request.id);
+
+    try {
+      // TODO: Call on-chain approve_pool instruction here
+      // For now, just update the database
+      const response = await fetch(`/api/admin/pool-requests/${request.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          approvalSignature: 'TEMP_SIGNATURE', // TODO: Get from on-chain transaction
+          adminAddress: publicKey.toString(),
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Pool request approved successfully!');
+        fetchPoolRequests();
+        fetchPools();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to approve request');
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      toast.error('Failed to approve request');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
+  const handleRejectRequest = async (request: PoolRequest) => {
+    if (!publicKey) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    setProcessingRequest(request.id);
+
+    try {
+      // TODO: Call on-chain reject_pool instruction here
+      const response = await fetch(`/api/admin/pool-requests/${request.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rejectionSignature: 'TEMP_SIGNATURE', // TODO: Get from on-chain transaction
+          adminAddress: publicKey.toString(),
+          reason: 'Rejected by admin',
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Pool request rejected');
+        fetchPoolRequests();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to reject request');
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      toast.error('Failed to reject request');
+    } finally {
+      setProcessingRequest(null);
     }
   };
 
@@ -193,6 +303,77 @@ export default function AdminPage() {
                       <p className="text-sm text-yellow-400">
                         <strong>Note:</strong> Only the pool authority ({pool.authority.slice(0, 8)}...{pool.authority.slice(-8)})
                         can unlock this pool.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Pool Requests */}
+        <div className="mt-8 bg-black/30 border border-white/10 p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Pool Requests</h2>
+            <div className="text-sm text-white/60">
+              {poolRequests.length} pending requests
+            </div>
+          </div>
+
+          {poolRequests.length === 0 ? (
+            <div className="text-center py-12 text-white/60">
+              No pending pool requests
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {poolRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="bg-black/50 border border-white/10 p-6 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-xl font-bold">
+                          {request.tokenX.symbol}/{request.tokenY.symbol}
+                        </h3>
+                        <div className="px-3 py-1 text-xs font-bold uppercase bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                          {request.status}
+                        </div>
+                      </div>
+                      <div className="text-sm text-white/60 space-y-1">
+                        <div>Fee: {request.fee / 100}%</div>
+                        <div>Creator: {request.creator.slice(0, 8)}...{request.creator.slice(-8)}</div>
+                        <div>Escrow X: {request.escrowXAddress?.slice(0, 8)}...{request.escrowXAddress?.slice(-8) || 'N/A'}</div>
+                        <div>Escrow Y: {request.escrowYAddress?.slice(0, 8)}...{request.escrowYAddress?.slice(-8) || 'N/A'}</div>
+                        <div>Requested: {new Date(request.createdAt).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => handleApproveRequest(request)}
+                        disabled={processingRequest === request.id || !publicKey}
+                        variant="default"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {processingRequest === request.id ? 'Processing...' : 'Approve'}
+                      </Button>
+                      <Button
+                        onClick={() => handleRejectRequest(request)}
+                        disabled={processingRequest === request.id || !publicKey}
+                        variant="destructive"
+                      >
+                        {processingRequest === request.id ? 'Processing...' : 'Reject'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {!publicKey && (
+                    <div className="bg-red-500/10 border border-red-500/30 p-4">
+                      <p className="text-sm text-red-400">
+                        <strong>Note:</strong> Connect your wallet to approve or reject requests
                       </p>
                     </div>
                   )}
