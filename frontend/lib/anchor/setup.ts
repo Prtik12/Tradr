@@ -4,10 +4,7 @@ import { AnchorWallet } from '@solana/wallet-adapter-react';
 import { IDL, type AmmAnchor } from './idl';
 
 // Validate program ID is configured
-const programIdString = process.env.NEXT_PUBLIC_AMM_PROGRAM_ID || '4XqThpjUnqqeg4vESBgzexS15cjBp82jsFTcH7XzTxko';
-
-console.log('[setup.ts] Environment NEXT_PUBLIC_AMM_PROGRAM_ID:', process.env.NEXT_PUBLIC_AMM_PROGRAM_ID);
-console.log('[setup.ts] Using program ID string:', programIdString);
+const programIdString = process.env.NEXT_PUBLIC_AMM_PROGRAM_ID;
 
 if (!programIdString) {
   throw new Error(
@@ -16,17 +13,8 @@ if (!programIdString) {
   );
 }
 
-// Program ID from Anchor.toml - with safe PublicKey creation
-let AMM_PROGRAM_ID: PublicKey;
-try {
-  AMM_PROGRAM_ID = new PublicKey(programIdString);
-  console.log('[setup.ts] AMM_PROGRAM_ID created successfully:', AMM_PROGRAM_ID.toString());
-} catch (error) {
-  console.error('[setup.ts] Failed to create PublicKey from:', programIdString, error);
-  throw new Error(`Invalid program ID: ${programIdString}. Error: ${error}`);
-}
-
-export { AMM_PROGRAM_ID };
+// Program ID from Anchor.toml (deployed program)
+export const AMM_PROGRAM_ID = new PublicKey(programIdString);
 
 /**
  * Get Anchor program instance
@@ -44,81 +32,22 @@ export function getAmmProgram(
   }
 
   try {
-    // Verify AMM_PROGRAM_ID is valid before proceeding
-    if (!AMM_PROGRAM_ID) {
-      throw new Error('AMM_PROGRAM_ID is not initialized. This should never happen.');
-    }
-    console.log('[getAmmProgram] AMM_PROGRAM_ID verified:', AMM_PROGRAM_ID.toString());
-
+    // Create Anchor provider
     const provider = new AnchorProvider(connection, wallet, {
       commitment: 'confirmed',
     });
-    console.log('[getAmmProgram] AnchorProvider created successfully');
 
-    // Log IDL structure for debugging
-    console.log('[getAmmProgram] IDL type:', typeof IDL);
-    console.log('[getAmmProgram] IDL metadata:', (IDL as any).metadata);
-    console.log('[getAmmProgram] IDL metadata.address:', (IDL as any).metadata?.address);
-
-    // Extract programId from IDL metadata if it exists, otherwise use AMM_PROGRAM_ID
-    let programIdFromIdl: PublicKey | null = null;
-    try {
-      const idlAddress = (IDL as any).metadata?.address || (IDL as any).address;
-      if (idlAddress) {
-        programIdFromIdl = new PublicKey(idlAddress);
-        console.log('[getAmmProgram] Program ID from IDL:', programIdFromIdl.toString());
-      } else {
-        console.log('[getAmmProgram] No program ID found in IDL metadata');
-      }
-    } catch (error) {
-      console.log('[getAmmProgram] Could not extract program ID from IDL:', error);
-    }
-
-    // Use the manually configured program ID (from env) as the source of truth
-    const programId = AMM_PROGRAM_ID;
-    console.log('[getAmmProgram] Using program ID for initialization:', programId.toString());
-
-    // Create minimal IDL with address field for Anchor v0.31+ compatibility
-    // Remove option types completely from the IDL
-    const processIDL = (idl: any) => {
-      console.log('[getAmmProgram] Processing IDL to remove option types...');
-      return JSON.parse(JSON.stringify(idl), (key, value) => {
-        // If the value is an object with 'option' key, replace with the base type
-        if (value && typeof value === 'object' && 'option' in value && !Array.isArray(value)) {
-          console.log('[getAmmProgram] Replacing option type:', value);
-          return 'publicKey';
-        }
-        return value;
-      });
-    };
-
-    const cleanedIDL = processIDL(IDL);
-    console.log('[getAmmProgram] IDL processing complete');
-
-    // Log cleaned IDL structure (first 500 chars)
-    const idlPreview = JSON.stringify(cleanedIDL, null, 2).substring(0, 500);
-    console.log('[getAmmProgram] Cleaned IDL preview:', idlPreview);
-
-    // CRITICAL: Create program with correct constructor signature
-    // new Program(idl, programId, provider)
-    // programId MUST be a valid PublicKey object, never undefined
-    console.log('[getAmmProgram] Creating Program instance...');
-    console.log('[getAmmProgram] - IDL type:', typeof cleanedIDL);
-    console.log('[getAmmProgram] - programId:', programId.toString());
-    console.log('[getAmmProgram] - programId type:', typeof programId);
-    console.log('[getAmmProgram] - provider type:', typeof provider);
-
-    const program = new Program(cleanedIDL as any, programId, provider);
+    // Create program instance with generated IDL (Anchor v0.31+ API)
+    // Use generic type parameter for proper type inference
+    // The IDL already contains the address, no need to pass it separately
+    const program = new Program<AmmAnchor>(IDL, provider);
 
     console.log('[getAmmProgram] ✅ Program initialized successfully');
-    console.log('[getAmmProgram] Program ID from instance:', program.programId.toString());
+    console.log('[getAmmProgram] Program ID:', program.programId.toString());
 
     return program;
   } catch (error) {
     console.error('[getAmmProgram] ❌ Failed to initialize Anchor program:', error);
-    console.error('[getAmmProgram] Error name:', error instanceof Error ? error.name : 'Unknown');
-    console.error('[getAmmProgram] Error message:', error instanceof Error ? error.message : 'Unknown error');
-    console.error('[getAmmProgram] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw new Error(
       `Failed to initialize Anchor program: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
@@ -129,8 +58,12 @@ export function getAmmProgram(
  * Derive pool config PDA
  */
 export function getConfigPDA(seed: bigint): [PublicKey, number] {
+  // Browser-compatible: Manual little-endian encoding of 64-bit unsigned integer
+  // This replaces seedBuffer.writeBigUInt64LE(seed) which doesn't exist in browsers
   const seedBuffer = Buffer.alloc(8);
-  seedBuffer.writeBigUInt64LE(seed);
+  for (let i = 0; i < 8; i++) {
+    seedBuffer[i] = Number((seed >> BigInt(i * 8)) & 0xFFn);
+  }
 
   return PublicKey.findProgramAddressSync(
     [Buffer.from('config'), seedBuffer],
@@ -162,7 +95,13 @@ export function derivePoolSeed(mintX: PublicKey, mintY: PublicKey): bigint {
   // Create a simple hash from the two mint addresses
   // In production, you might want to use a more sophisticated approach
   const combined = Buffer.concat([mint1.toBuffer(), mint2.toBuffer()]);
-  const hash = combined.slice(0, 8);
+  const hashBytes = combined.slice(0, 8);
 
-  return hash.readBigUInt64LE(0);
+  // Convert 8 bytes to BigInt (little-endian)
+  let value = 0n;
+  for (let i = 0; i < 8; i++) {
+    value |= BigInt(hashBytes[i]) << BigInt(i * 8);
+  }
+
+  return value;
 }
