@@ -10,7 +10,7 @@ pub use error::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("9hx7ffYS5xEUCRpKDXN2eum1dV72sZyiLRRS7ybMk4QW");
+declare_id!("DURF22sADFsLk9XiKz5ZMFEmLyP9VXXguAiQZ4LGfWgt");
 
 #[program]
 pub mod amm_anchor {
@@ -48,6 +48,28 @@ pub mod amm_anchor {
 
     pub fn unlock(ctx: Context<Update>) -> Result<()> {
         ctx.accounts.unlock()?;
+        Ok(())
+    }
+
+    pub fn create_pool_with_escrow(
+        ctx: Context<CreatePoolWithEscrow>,
+        seed: u64,
+        fee: u16,
+        authority: Option<Pubkey>,
+        amount_x: u64,
+        amount_y: u64,
+    ) -> Result<()> {
+        ctx.accounts.create_pool_with_escrow(seed, fee, authority, amount_x, amount_y, &ctx.bumps)?;
+        Ok(())
+    }
+
+    pub fn approve_pool(ctx: Context<ApprovePool>) -> Result<()> {
+        ctx.accounts.approve_pool()?;
+        Ok(())
+    }
+
+    pub fn reject_pool(ctx: Context<RejectPool>) -> Result<()> {
+        ctx.accounts.reject_pool()?;
         Ok(())
     }
 }

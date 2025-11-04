@@ -21,6 +21,10 @@ pub enum AMMError {
     InsufficientBalance,
     #[msg("Zero Balance")]
     ZeroBalance,
+    #[msg("Invalid Escrow Status")]
+    InvalidEscrowStatus,
+    #[msg("Unauthorized Admin")]
+    UnauthorizedAdmin,
 }
 
 impl From<CurveError> for AMMError {

@@ -1,0 +1,7 @@
+/Users/pratikgolder/Desktop/College/Major Project/Tradr/anchor/target/sbpf-solana-solana/release/deps/libsolana_feature_gate_interface-a9ca6b1012ee43a9.rmeta: /Users/pratikgolder/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-feature-gate-interface-2.2.2/src/lib.rs
+
+/Users/pratikgolder/Desktop/College/Major Project/Tradr/anchor/target/sbpf-solana-solana/release/deps/libsolana_feature_gate_interface-a9ca6b1012ee43a9.rlib: /Users/pratikgolder/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-feature-gate-interface-2.2.2/src/lib.rs
+
+/Users/pratikgolder/Desktop/College/Major Project/Tradr/anchor/target/sbpf-solana-solana/release/deps/solana_feature_gate_interface-a9ca6b1012ee43a9.d: /Users/pratikgolder/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-feature-gate-interface-2.2.2/src/lib.rs
+
+/Users/pratikgolder/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-feature-gate-interface-2.2.2/src/lib.rs:

@@ -1,0 +1,9 @@
+/Users/pratikgolder/Desktop/College/Major Project/Tradr/anchor/target/debug/deps/solana_system_interface-7b00a1daa7bf2a7a.d: /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/lib.rs /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/error.rs /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/instruction.rs
+
+/Users/pratikgolder/Desktop/College/Major Project/Tradr/anchor/target/debug/deps/libsolana_system_interface-7b00a1daa7bf2a7a.rlib: /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/lib.rs /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/error.rs /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/instruction.rs
+
+/Users/pratikgolder/Desktop/College/Major Project/Tradr/anchor/target/debug/deps/libsolana_system_interface-7b00a1daa7bf2a7a.rmeta: /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/lib.rs /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/error.rs /Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/instruction.rs
+
+/Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/lib.rs:
+/Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/error.rs:
+/Users/pratikgolder/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-system-interface-1.0.0/src/instruction.rs:

@@ -74,9 +74,11 @@ impl <'info> Initialize <'info> {
             mint_y: self.mint_y.key(),
             fee,
             locked: true, // Changed: Always start locked for admin approval
+            whitelisted: false,
             config_bump: bumps.config,
             lp_bump: bumps.mint_lp,
-            reserved: [0; 32],
+            admins: Vec::new(),
+            reserved: [0; 16],
         });
 
         Ok(())

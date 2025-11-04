@@ -1,0 +1,169 @@
+// Prisma schema for Tradr DeFi Platform
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Token {
+  id           String   @id @default(cuid())
+  mintAddress  String   @unique
+  name         String
+  symbol       String
+  decimals     Int
+  supply       String?  // BigInt as string to handle large numbers
+  imageUrl     String?
+  creator      String   // Public key
+  signature    String   // Creation transaction signature
+  whitelisted  Boolean  @default(false) // NEW: Admin approval status
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  poolsAsTokenX Pool[]  @relation("PoolTokenX")
+  poolsAsTokenY Pool[]  @relation("PoolTokenY")
+
+  @@map("tokens")
+}
+
+model Pool {
+  id                   String   @id @default(cuid())
+  configAddress        String   @unique // PDA address of the pool config
+  tokenXMint           String
+  tokenYMint           String
+  lpMintAddress        String   @unique
+  fee                  Int      // Basis points (e.g., 300 = 3%)
+  authority            String   // Public key of pool authority
+  locked               Boolean  @default(true)
+  whitelisted          Boolean  @default(false) // NEW: Admin approval status
+  escrowAddress        String?  // NEW: Escrow PDA (if pending approval)
+  creator              String   // Public key of creator
+  creationSignature    String   // Pool creation transaction
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  tokenX Token @relation("PoolTokenX", fields: [tokenXMint], references: [mintAddress])
+  tokenY Token @relation("PoolTokenY", fields: [tokenYMint], references: [mintAddress])
+  liquidityPositions LiquidityPosition[]
+
+  @@map("pools")
+}
+
+model Price {
+  id        String   @id @default(cuid())
+  feedId    String   // Pyth feed ID
+  price     Float
+  expo      Int      // Price exponent
+  timestamp DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([feedId, timestamp])
+  @@map("prices")
+}
+
+model Oracle {
+  id          String @id @default(cuid())
+  name        String @unique // e.g., "SOL/USD", "BTC/USD"
+  feedId      String @unique // Pyth feed ID
+  symbol      String
+  baseSymbol  String
+  quoteSymbol String
+  enabled     Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("oracles")
+}
+
+// For order book (CLOB) functionality
+model Order {
+  id            String   @id @default(cuid())
+  orderId       String   @unique // OpenBook order ID
+  userAddress   String
+  marketAddress String   // OpenBook market address
+  poolAddress   String   // Associated AMM pool
+  side          String   // "buy" or "sell"
+  orderType     String   // "limit", "market", etc.
+  price         Float
+  quantity      Float
+  filledQty     Float    @default(0)
+  status        String   // "open", "filled", "cancelled"
+  signature     String   // Transaction signature
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("orders")
+}
+
+// For maker bot functionality
+model MakerBot {
+  id         String   @id @default(cuid())
+  poolId     String
+  enabled    Boolean  @default(false)
+  spread     Float    @default(0.001) // 0.1% spread
+  size       Float    @default(10)    // SOL equivalent
+  lastUpdate DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([poolId])
+  @@map("maker_bots")
+}
+
+// NEW: Pool creation requests (pending admin approval)
+model PoolRequest {
+  id                String   @id @default(cuid())
+  poolSeed          String   @unique // u64 seed for pool derivation
+  configAddress     String   @unique // Config PDA address
+  escrowAddress     String   @unique // Escrow PDA address
+  tokenXMint        String
+  tokenYMint        String
+  amountX           String   // BigInt as string
+  amountY           String   // BigInt as string
+  fee               Int      // Basis points
+  creator           String   // Public key
+  status            String   @default("pending") // "pending", "approved", "rejected"
+  rejectionReason   String?  // Optional reason if rejected
+  approvedBy        String?  // Admin public key who approved/rejected
+  creationSignature String   // Transaction signature
+  approvalSignature String?  // Approval/rejection transaction signature
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("pool_requests")
+}
+
+// NEW: Track user liquidity positions (LP token holdings)
+model LiquidityPosition {
+  id            String   @id @default(cuid())
+  userAddress   String   // Public key
+  poolId        String
+  lpMintAddress String
+  lpAmount      String   // BigInt as string (LP tokens held)
+  sharePercent  Float?   // Cached share percentage
+  depositTxSig  String?  // Initial deposit transaction
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  pool Pool @relation(fields: [poolId], references: [id])
+
+  @@unique([userAddress, poolId])
+  @@map("liquidity_positions")
+}
+
+// NEW: Admin wallet addresses (hardcoded)
+model Admin {
+  id        String   @id @default(cuid())
+  address   String   @unique // Public key
+  name      String?  // Optional admin name
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
