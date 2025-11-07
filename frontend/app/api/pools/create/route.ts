@@ -6,16 +6,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     const {
+      poolSeed,
+      configAddress,
+      escrowAddress,
       tokenMint,
-      initialTokenAmount,
-      initialSolAmount,
+      amountX,
+      amountY,
       creator,
       signature,
-      locked = true, // Always start locked
     } = body;
 
     // Validate required fields
-    if (!tokenMint || !creator || !signature) {
+    if (!poolSeed || !configAddress || !escrowAddress || !tokenMint || !amountX || !amountY || !creator || !signature) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -52,17 +54,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create pool record
-    const pool = await prisma.pool.create({
+    // Create pool request record (pending admin approval)
+    const poolRequest = await prisma.poolRequest.create({
       data: {
-        configAddress: '', // Will be updated when pool is initialized on-chain
-        tokenXMint: 'So11111111111111111111111111111111111111112', // SOL
+        poolSeed,
+        configAddress,
+        escrowAddress,
+        tokenXMint: SOL_MINT, // SOL
         tokenYMint: tokenMint,
-        lpMintAddress: '', // Will be set when pool is created
+        amountX,
+        amountY,
         fee: 300, // 3%
-        authority: creator,
-        locked,
         creator,
+        status: 'pending',
         creationSignature: signature,
       },
       include: {
@@ -73,8 +77,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Pool request submitted successfully',
-      data: pool,
+      message: 'Pool request submitted successfully and awaiting admin approval',
+      data: poolRequest,
     });
 
   } catch (error) {

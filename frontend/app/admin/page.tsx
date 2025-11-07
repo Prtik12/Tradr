@@ -5,7 +5,7 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { unlockPool, getPoolConfig } from '@/lib/anchor';
+import { unlockPool, getPoolConfig, approvePool, rejectPool } from '@/lib/anchor';
 
 interface Pool {
   id: string;
@@ -54,7 +54,7 @@ interface PoolRequest {
 
 export default function AdminPage() {
   const { connection } = useConnection();
-  const { publicKey } = useWallet();
+  const { publicKey, signTransaction, signAllTransactions } = useWallet();
   const [pools, setPools] = useState<Pool[]>([]);
   const [poolRequests, setPoolRequests] = useState<PoolRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,13 +106,18 @@ export default function AdminPage() {
       return;
     }
 
+    if (!signTransaction || !signAllTransactions) {
+      toast.error('Wallet does not support signing transactions');
+      return;
+    }
+
     setUnlockingPool(pool.id);
 
     try {
-      // Unlock pool on-chain
+      // Unlock pool on-chain using the proper wallet from useWallet hook
       const signature = await unlockPool(
         connection,
-        { publicKey, signTransaction: async (tx) => tx } as any, // Simplified for demo
+        { publicKey, signTransaction, signAllTransactions } as any,
         new PublicKey(pool.tokenXMint),
         new PublicKey(pool.tokenYMint)
       );
@@ -144,31 +149,45 @@ export default function AdminPage() {
       return;
     }
 
+    if (!signTransaction || !signAllTransactions) {
+      toast.error('Wallet does not support signing transactions');
+      return;
+    }
+
     setProcessingRequest(request.id);
 
     try {
-      // TODO: Call on-chain approve_pool instruction here
-      // For now, just update the database
+      // Call on-chain approve_pool instruction
+      const signature = await approvePool(
+        connection,
+        { publicKey, signTransaction, signAllTransactions } as any,
+        new PublicKey(request.configAddress),
+        new PublicKey(request.tokenXMint),
+        new PublicKey(request.tokenYMint),
+        new PublicKey(request.creator)
+      );
+
+      // Update database with approval signature
       const response = await fetch(`/api/admin/pool-requests/${request.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          approvalSignature: 'TEMP_SIGNATURE', // TODO: Get from on-chain transaction
+          approvalSignature: signature,
           adminAddress: publicKey.toString(),
         }),
       });
 
       if (response.ok) {
-        toast.success('Pool request approved successfully!');
+        toast.success('Pool request approved successfully! Liquidity added to pool.');
         fetchPoolRequests();
         fetchPools();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to approve request');
+        toast.error(error.error || 'Failed to update database');
       }
     } catch (error) {
       console.error('Error approving request:', error);
-      toast.error('Failed to approve request');
+      toast.error(error instanceof Error ? error.message : 'Failed to approve request');
     } finally {
       setProcessingRequest(null);
     }
@@ -180,30 +199,45 @@ export default function AdminPage() {
       return;
     }
 
+    if (!signTransaction || !signAllTransactions) {
+      toast.error('Wallet does not support signing transactions');
+      return;
+    }
+
     setProcessingRequest(request.id);
 
     try {
-      // TODO: Call on-chain reject_pool instruction here
+      // Call on-chain reject_pool instruction
+      const signature = await rejectPool(
+        connection,
+        { publicKey, signTransaction, signAllTransactions } as any,
+        new PublicKey(request.configAddress),
+        new PublicKey(request.tokenXMint),
+        new PublicKey(request.tokenYMint),
+        new PublicKey(request.creator)
+      );
+
+      // Update database with rejection signature
       const response = await fetch(`/api/admin/pool-requests/${request.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rejectionSignature: 'TEMP_SIGNATURE', // TODO: Get from on-chain transaction
+          rejectionSignature: signature,
           adminAddress: publicKey.toString(),
           reason: 'Rejected by admin',
         }),
       });
 
       if (response.ok) {
-        toast.success('Pool request rejected');
+        toast.success('Pool request rejected. Tokens returned to creator.');
         fetchPoolRequests();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to reject request');
+        toast.error(error.error || 'Failed to update database');
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
-      toast.error('Failed to reject request');
+      toast.error(error instanceof Error ? error.message : 'Failed to reject request');
     } finally {
       setProcessingRequest(null);
     }

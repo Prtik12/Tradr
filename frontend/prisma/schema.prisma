@@ -25,6 +25,8 @@ model Token {
   // Relations
   poolsAsTokenX Pool[]  @relation("PoolTokenX")
   poolsAsTokenY Pool[]  @relation("PoolTokenY")
+  poolRequestsAsTokenX PoolRequest[] @relation("PoolRequestTokenX")
+  poolRequestsAsTokenY PoolRequest[] @relation("PoolRequestTokenY")
 
   @@map("tokens")
 }
@@ -133,6 +135,10 @@ model PoolRequest {
   approvalSignature String?  // Approval/rejection transaction signature
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  // Relations
+  tokenX Token @relation("PoolRequestTokenX", fields: [tokenXMint], references: [mintAddress])
+  tokenY Token @relation("PoolRequestTokenY", fields: [tokenYMint], references: [mintAddress])
 
   @@map("pool_requests")
 }

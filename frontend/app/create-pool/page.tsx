@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { initializePool, getPoolConfig } from '@/lib/anchor';
+import { createPoolWithEscrow, getPoolConfig } from '@/lib/anchor';
 
 type PoolStatus = 'idle' | 'validating' | 'creating' | 'success';
 
@@ -143,40 +143,44 @@ export default function CreatePoolPage() {
         return;
       }
 
-      // Initialize pool on-chain
+      // Create pool with escrow on-chain
       // Default fee: 300 basis points (3%)
-      // Authority: user's wallet (can lock/unlock pool)
-      const signature = await initializePool({
+      // Liquidity will be held in escrow until admin approval
+      const result = await createPoolWithEscrow({
         connection,
         wallet: anchorWallet,
         mintX: SOL_MINT,
         mintY: tokenMintPubkey,
         fee: 300,
         authority: publicKey,
+        amountX: solAmount,
+        amountY: tokenAmount,
       });
 
-      toast.success('Pool initialized on-chain!');
+      toast.success('Pool request created! Liquidity deposited to escrow.');
 
-      // Store pool metadata in database
+      // Store pool request metadata in database
       try {
         await fetch('/api/pools/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            poolSeed: result.seed.toString(),
+            configAddress: result.configAddress,
+            escrowAddress: result.escrowAddress,
             tokenMint: formData.tokenMint,
-            initialTokenAmount: tokenAmount,
-            initialSolAmount: solAmount,
+            amountX: (solAmount * 10 ** 9).toString(),
+            amountY: (tokenAmount * 10 ** 9).toString(),
             creator: publicKey.toString(),
-            signature,
-            locked: true,
+            signature: result.signature,
           }),
         });
       } catch (dbError) {
-        console.error('Failed to store pool metadata:', dbError);
+        console.error('Failed to store pool request metadata:', dbError);
         // Don't fail if DB storage fails
       }
 
-      setPoolId(signature);
+      setPoolId(result.signature);
       setStatus('success');
 
       // Reset form
