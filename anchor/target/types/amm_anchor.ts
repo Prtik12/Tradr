@@ -256,7 +256,8 @@ export type AmmAnchor = {
         {
           "name": "vaultX",
           "docs": [
-            "Pool vaults (destination for initial liquidity)"
+            "Pool vaults (destination for initial liquidity)",
+            "These should be created during pool creation, not approval"
           ],
           "writable": true,
           "pda": {
@@ -459,12 +460,14 @@ export type AmmAnchor = {
           }
         },
         {
-          "name": "creator"
+          "name": "creator",
+          "writable": true
         },
         {
           "name": "creatorLpAccount",
           "docs": [
-            "Creator's LP token account (to receive LP tokens)"
+            "Creator's LP token account (to receive LP tokens)",
+            "Created by admin during approval"
           ],
           "writable": true,
           "pda": {

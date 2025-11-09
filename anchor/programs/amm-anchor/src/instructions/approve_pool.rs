@@ -43,6 +43,7 @@ pub struct ApprovePool<'info> {
     pub escrow_vault_y: Account<'info, TokenAccount>,
 
     /// Pool vaults (destination for initial liquidity)
+    /// These should be created during pool creation, not approval
     #[account(
         init_if_needed,
         payer = admin,
@@ -67,10 +68,12 @@ pub struct ApprovePool<'info> {
     )]
     pub mint_lp: Account<'info, Mint>,
 
-    /// CHECK: Creator account (from escrow state)
+    /// CHECK: Creator account to receive rent refund
+    #[account(mut, address = escrow.creator)]
     pub creator: UncheckedAccount<'info>,
 
     /// Creator's LP token account (to receive LP tokens)
+    /// Created by admin during approval
     #[account(
         init_if_needed,
         payer = admin,

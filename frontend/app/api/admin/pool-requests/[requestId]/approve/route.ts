@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { PublicKey } from '@solana/web3.js';
 
 export async function POST(
   req: NextRequest,
@@ -46,22 +47,30 @@ export async function POST(
       data: {
         status: 'approved',
         approvalSignature,
-        approvedAt: new Date(),
         approvedBy: adminAddress,
       },
     });
 
+    // Derive LP mint address from config PDA
+    const PROGRAM_ID = new PublicKey('HCmhN8r4Wdpe1MRy5R8NfLqQqKEDZVmvBV7JCz9aSdCb');
+    const configPubkey = new PublicKey(poolRequest.configAddress);
+    const [lpMintAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('lp'), configPubkey.toBuffer()],
+      PROGRAM_ID
+    );
+
     // Create the pool record in the Pool table
     const pool = await prisma.pool.create({
       data: {
-        configAddress: poolRequest.configAddress || '',
+        configAddress: poolRequest.configAddress,
         tokenXMint: poolRequest.tokenXMint,
         tokenYMint: poolRequest.tokenYMint,
-        lpMintAddress: poolRequest.lpMintAddress || '',
+        lpMintAddress: lpMintAddress.toString(),
         fee: poolRequest.fee,
-        authority: poolRequest.authority || poolRequest.creator,
+        authority: poolRequest.creator, // Use creator as authority
         locked: false, // Unlock the pool upon approval
-        whitelisted: false,
+        whitelisted: true, // Whitelisted since admin approved
+        escrowAddress: poolRequest.escrowAddress,
         creator: poolRequest.creator,
         creationSignature: poolRequest.creationSignature,
       },
